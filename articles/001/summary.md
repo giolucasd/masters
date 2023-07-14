@@ -23,8 +23,8 @@ We validate our proposal over two medical image semantic segmentation datasets a
 
 ### 3.1. I/O
 
-Input: 3D MRI image
-Output: Pixel classification over 3D image
+* Input: 3D MRI image
+* Output: Pixel classification over 3D image
 
 ### 3.2. Data preprocessing
 
