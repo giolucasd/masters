@@ -1,0 +1,17 @@
+[project]
+name = "mo443"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv]
+dev-dependencies = [
+    "bitarray==2.9.2",
+    "bitstring==4.1.4",
+    "numpy==1.26.4",
+    "opencv-python==4.9.0.80",
+    "scikit-image==0.23.2",
+    "scipy==1.13.1",
+]
