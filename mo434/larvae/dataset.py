@@ -29,7 +29,7 @@ class ImageDataset(Dataset):
 
         return input_image, target
 
-    def _get_target_from_filename(filename: str) -> int:
+    def _get_target_from_filename(self, filename: str) -> int:
         """
         Get target for the given filename.
 
