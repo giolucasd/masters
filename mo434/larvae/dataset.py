@@ -8,8 +8,6 @@ from torch import nn as nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms.functional import to_tensor
 
-data_dir = "../images/larvae"
-
 
 class ImageDataset(Dataset):
     def __init__(self, filenames: list[str], transform=to_tensor):
@@ -40,65 +38,70 @@ class ImageDataset(Dataset):
         return int(str(filename).split("/")[-1].split("_")[0]) - 1
 
 
-def get_tvt_splited_filenames(
-    train_perc: float = 0.50,
-    valid_perc: float = 0.20,
-) -> tuple[list[str], list[str], list[str]]:
-    filenames = glob(data_dir + "/*.png")  # it returns a list of image filenames
-    np.random.shuffle(filenames)
+class ImageDataLoadBuilder:
+    def __init__(
+        self,
+        train_perc: float = 0.50,
+        valid_perc: float = 0.20,
+        train_transform=to_tensor,
+        valid_transform=to_tensor,
+        test_transform=to_tensor,
+        batchsize: int = 32,
+    ):
+        self._train_perc = train_perc
+        self._valid_perc = valid_perc
+        self._train_transform = train_transform
+        self._valid_transform = valid_transform
+        self._test_transform = test_transform
+        self._batchsize = batchsize
+        self._data_dir = "../images/larvae"
 
-    num_train_samples = int(len(filenames) * train_perc)
-    num_valid_samples = int(len(filenames) * valid_perc)
+    def get_tvt_splited_filenames(self) -> tuple[list[str], list[str], list[str]]:
+        filenames = glob(
+            self._data_dir + "/*.png"
+        )  # it returns a list of image filenames
+        np.random.shuffle(filenames)
 
-    train_filenames = filenames[:num_train_samples]
-    valid_filenames = filenames[
-        num_train_samples : num_train_samples + num_valid_samples
-    ]
-    test_filenames = filenames[num_train_samples + num_valid_samples :]
+        num_train_samples = int(len(filenames) * self._train_perc)
+        num_valid_samples = int(len(filenames) * self._valid_perc)
 
-    return train_filenames, valid_filenames, test_filenames
+        train_filenames = filenames[:num_train_samples]
+        valid_filenames = filenames[
+            num_train_samples : num_train_samples + num_valid_samples
+        ]
+        test_filenames = filenames[num_train_samples + num_valid_samples :]
 
+        return train_filenames, valid_filenames, test_filenames
 
-def get_tvt_splited_datasets(
-    train_perc: float = 0.50,
-    valid_perc: float = 0.20,
-    train_transform=to_tensor,
-    valid_transform=to_tensor,
-    test_transform=to_tensor,
-):
-    train_filenames, valid_filenames, test_filenames = get_tvt_splited_filenames(
-        train_perc,
-        valid_perc,
-    )
+    def get_tvt_splited_datasets(
+        self,
+    ) -> tuple[ImageDataset, ImageDataset, ImageDataset]:
+        train_filenames, valid_filenames, test_filenames = (
+            self.get_tvt_splited_filenames()
+        )
 
-    train_dataset = ImageDataset(train_filenames, train_transform)
-    valid_dataset = ImageDataset(valid_filenames, valid_transform)
-    test_dataset = ImageDataset(test_filenames, test_transform)
+        train_dataset = ImageDataset(train_filenames, self._train_transform)
+        valid_dataset = ImageDataset(valid_filenames, self._valid_transform)
+        test_dataset = ImageDataset(test_filenames, self._test_transform)
 
-    return train_dataset, valid_dataset, test_dataset
+        return train_dataset, valid_dataset, test_dataset
 
+    def get_tvt_splited_dataloaders(self) -> tuple[DataLoader, DataLoader, DataLoader]:
+        train_dataset, valid_dataset, test_dataset = self.get_tvt_splited_datasets()
 
-def get_tvt_splited_dataloaders(
-    train_perc: float = 0.50,
-    valid_perc: float = 0.20,
-    train_transform=to_tensor,
-    valid_transform=to_tensor,
-    test_transform=to_tensor,
-    batchsize: int = 32,
-):
-    train_dataset, valid_dataset, test_dataset = get_tvt_splited_datasets(
-        train_perc,
-        valid_perc,
-        train_transform,
-        valid_transform,
-        test_transform,
-    )
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=self._batchsize,
+            shuffle=True,
+        )
+        valid_loader = DataLoader(
+            valid_dataset,
+            batch_size=self._batchsize,
+            shuffle=True,
+        )
+        test_loader = DataLoader(test_dataset, batch_size=self._batchsize, shuffle=True)
 
-    train_loader = DataLoader(train_dataset, batch_size=batchsize, shuffle=True)
-    valid_loader = DataLoader(valid_dataset, batch_size=batchsize, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=batchsize, shuffle=True)
-
-    return train_loader, valid_loader, test_loader
+        return train_loader, valid_loader, test_loader
 
 
 def visualize_example(dataset: ImageDataset):
