@@ -1,74 +1,139 @@
+from typing import List, Optional, Tuple
+
 import torch
 from torch import nn
 
 
-def conv_block(nchannels_in, nchannels_out, stride_val=2, kernel_size=(3, 3)):
-    return nn.Sequential(
+def conv_block(
+    in_channels: int,
+    out_channels: int,
+    stride: int = 2,
+    kernel_size: int = 3,
+    use_batchnorm: bool = True,
+) -> nn.Sequential:
+    """
+    Creates a convolutional block with optional BatchNorm and fixed ReLU + MaxPool.
+    """
+    layers = [
         nn.Conv2d(
-            in_channels=nchannels_in,
-            out_channels=nchannels_out,
+            in_channels=in_channels,
+            out_channels=out_channels,
             kernel_size=kernel_size,
             stride=1,
             padding=1,
-            bias=False,
-        ),
-        nn.BatchNorm2d(num_features=nchannels_out),
-        nn.ReLU(),
-        nn.Conv2d(
-            in_channels=nchannels_out,
-            out_channels=nchannels_out,
-            kernel_size=kernel_size,
-            stride=1,
-            padding=1,
-            bias=False,
-        ),
-        nn.BatchNorm2d(num_features=nchannels_out),
-        nn.ReLU(),
-        nn.MaxPool2d(kernel_size=kernel_size, stride=stride_val, padding=1),
+            bias=not use_batchnorm,
+        )
+    ]
+
+    if use_batchnorm:
+        layers.append(nn.BatchNorm2d(out_channels))
+
+    layers.extend(
+        [
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=kernel_size, stride=stride, padding=1),
+        ]
     )
+
+    return nn.Sequential(*layers)
+
+
+def mlp_block(
+    in_features: int,
+    out_features: int,
+    use_dropout: bool = True,
+    dropout_prob: float = 0.2,
+) -> nn.Sequential:
+    """
+    Creates an MLP block: Linear + ReLU (+ Dropout if enabled).
+    """
+    layers = [
+        nn.Linear(in_features, out_features),
+        nn.ReLU(),
+    ]
+
+    if use_dropout:
+        layers.append(nn.Dropout(dropout_prob))
+
+    return nn.Sequential(*layers)
 
 
 class ConvNet(nn.Module):
-    def __init__(self, input_shape, nclasses):
+    """
+    A configurable convolutional neural network for classification tasks.
+    """
+
+    def __init__(
+        self,
+        input_shape: Tuple[int, int, int],
+        num_classes: int,
+        use_dropout: bool = True,
+        use_batchnorm: bool = True,
+        conv_channels: Optional[List[int]] = None,
+        mlp_layers: Optional[List[int]] = None,
+    ) -> None:
+        """
+        Initializes the ConvNet.
+
+        Args:
+            input_shape: Tuple with (C, H, W) of the input image.
+            num_classes: Number of output classes.
+            use_dropout: Whether to use Dropout in the classifier.
+            use_batchnorm: Whether to use BatchNorm in conv blocks.
+            conv_channels: List of convolutional channel sizes.
+            mlp_layers: List of MLP hidden layer sizes.
+        """
         super().__init__()
 
-        # feature extractor
-        nchannels_in = input_shape[0]
-        nfilters = (8, 16, 32)
-        stride = 2
-        self.features = nn.Sequential(
-            conv_block(nchannels_in, nfilters[0], stride),
-            conv_block(nfilters[0], nfilters[1], stride),
-            conv_block(nfilters[1], nfilters[2], stride),
-        )
+        in_channels = input_shape[0]
+        conv_channels = conv_channels or [6, 12, 24]
+        mlp_layers = mlp_layers or [16]
 
-        # classifier
-        dim_reduction_factor = stride ** len(nfilters)
-        classifier_in_features = (
-            (input_shape[1] // dim_reduction_factor)
-            * (input_shape[2] // dim_reduction_factor)
-            * nfilters[-1]
-        )
-        preout_features = 16
-        self.classifier = nn.Sequential(
-            nn.Linear(
-                in_features=classifier_in_features,
-                out_features=preout_features,
-                bias=True,
-            ),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(preout_features, nclasses),
-        )
+        # Feature extractor
+        layers = []
+        for out_channels in conv_channels:
+            layers.append(
+                conv_block(
+                    in_channels=in_channels,
+                    out_channels=out_channels,
+                    stride=2,
+                    use_batchnorm=use_batchnorm,
+                )
+            )
+            in_channels = out_channels
+        self.features = nn.Sequential(*layers)
 
-    def forward(self, x):
-        # extracts features
+        # Compute flattened feature size
+        fc_in_features = self._get_flattened_size(input_shape)
+
+        # MLP classifier
+        mlp_blocks = []
+        for hidden in mlp_layers:
+            mlp_blocks.append(
+                mlp_block(
+                    fc_in_features,
+                    hidden,
+                    use_dropout=use_dropout,
+                )
+            )
+            fc_in_features = hidden
+
+        mlp_blocks.append(nn.Linear(fc_in_features, num_classes))
+        self.classifier = nn.Sequential(*mlp_blocks)
+
+    def _get_flattened_size(self, input_shape: Tuple[int, int, int]) -> int:
+        """
+        Computes the number of features after flattening the output from the feature extractor.
+        """
+        with torch.no_grad():
+            dummy_input = torch.zeros(1, *input_shape)
+            output = self.features(dummy_input)
+            return output.view(1, -1).shape[1]
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass through the network.
+        """
         x = self.features(x)
-
-        # transforms outputs into a 2D tensor
         x = torch.flatten(x, start_dim=1)
-
-        # classifies features
-        y = self.classifier(x)
-
-        return y
+        return self.classifier(x)
