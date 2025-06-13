@@ -1,3 +1,4 @@
+import math
 from typing import List, Optional, Tuple
 
 import torch
@@ -121,6 +122,8 @@ class ConvNet(nn.Module):
         mlp_blocks.append(nn.Linear(fc_in_features, num_classes))
         self.classifier = nn.Sequential(*mlp_blocks)
 
+        self._initialize_weights()
+
     def _get_flattened_size(self, input_shape: Tuple[int, int, int]) -> int:
         """
         Computes the number of features after flattening the output from the feature extractor.
@@ -129,6 +132,23 @@ class ConvNet(nn.Module):
             dummy_input = torch.zeros(1, *input_shape)
             output = self.features(dummy_input)
             return output.view(1, -1).shape[1]
+
+    def _initialize_weights(self):
+        """
+        Initializes weights for Conv2d and Linear layers using standard strategies:
+        - Conv2d: He initialization (normal distribution with std = sqrt(2 / fan_in))
+        - Linear: Normal distribution with mean = 0 and std = 0.01
+        """
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.in_channels
+                m.weight.data.normal_(0, math.sqrt(2.0 / n))
+                if m.bias is not None:
+                    m.bias.data.zero_()
+            elif isinstance(m, nn.Linear):
+                m.weight.data.normal_(0, 0.01)
+                if m.bias is not None:
+                    m.bias.data.zero_()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
