@@ -57,7 +57,8 @@ class Trainer:
             "val_loss": [],
         }
         for name in self.metric_names:
-            self.history[name] = []
+            self.history[f"train_{name}"] = []
+            self.history[f"val_{name}"] = []
 
         self.best_val_loss = float("inf")
         self.early_stop_counter = 0
@@ -79,15 +80,26 @@ class Trainer:
         for epoch in range(num_epochs):
             train_loss = self._train_one_epoch(train_loader, epoch, num_epochs)
             val_loss, val_metrics = self.evaluate(val_loader)
+            _, train_metrics = self.evaluate(train_loader)
 
             self.history["train_loss"].append(train_loss)
             self.history["val_loss"].append(val_loss)
-            for name, value in zip(self.metric_names, val_metrics):
-                self.history[name].append(value)
+
+            for name, val_value, train_value in zip(
+                self.metric_names,
+                val_metrics,
+                train_metrics,
+            ):
+                self.history[f"val_{name}"].append(val_value)
+                self.history[f"train_{name}"].append(train_value)
 
             metrics_str = " | ".join(
-                f"Val {name}: {value:.4f}"
-                for name, value in zip(self.metric_names, val_metrics)
+                f"Train {name}: {train_value:.4f} | Val {name}: {val_value:.4f}"
+                for name, val_value, train_value in zip(
+                    self.metric_names,
+                    val_metrics,
+                    train_metrics,
+                )
             )
             print(
                 f"📘 Epoch {epoch + 1} | Train Loss: {train_loss:.4f} | "
@@ -161,7 +173,8 @@ class Trainer:
         # Metrics subplot(s)
         plt.subplot(1, 2, 2)
         for name in self.metric_names:
-            plt.plot(epochs, self.history[name], label=f"Val {name}")
+            plt.plot(epochs, self.history[f"train_{name}"], label=f"Train {name}")
+            plt.plot(epochs, self.history[f"val_{name}"], label=f"Val {name}")
         plt.xlabel("Epoch")
         plt.ylabel("Metric Value")
         plt.title("Metrics over Epochs")
