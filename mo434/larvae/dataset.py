@@ -11,8 +11,7 @@ from torchvision.transforms.functional import to_tensor
 
 class ImageDataset(Dataset):
     """
-    A custom dataset that loads images and their associated binary class labels
-    inferred from file names. Class label 0 indicates larvae and 1 indicates non-larvae.
+    A custom dataset that loads images and their associated class labels inferred from file names.
     """
 
     def __init__(
@@ -38,7 +37,6 @@ class ImageDataset(Dataset):
         """
         Extract binary class label from path.
         Assumes file names are formatted as '<label>_<...>.png', where label ∈ {1, 2}.
-        Returns 0 for larvae and 1 for non-larvae.
         """
         label = int(path.stem.split("_")[0])
         return label - 1
@@ -51,13 +49,13 @@ class ImageDataLoadBuilder:
 
     def __init__(
         self,
+        data_dir: Path,
         train_perc: float = 0.50,
         valid_perc: float = 0.20,
         train_transform: Callable[[Image.Image], Tensor] = to_tensor,
         valid_transform: Callable[[Image.Image], Tensor] = to_tensor,
         test_transform: Callable[[Image.Image], Tensor] = to_tensor,
         batchsize: int = 32,
-        data_dir: Path = Path("../images/larvae"),
     ):
         self._train_perc = train_perc
         self._valid_perc = valid_perc
@@ -111,7 +109,7 @@ class ImageDataLoadBuilder:
         return train_loader, valid_loader, test_loader
 
 
-def visualize_example(dataset: ImageDataset) -> None:
+def visualize_larvae_sample(dataset: ImageDataset) -> None:
     """
     Randomly visualize a single example from the dataset.
     """
