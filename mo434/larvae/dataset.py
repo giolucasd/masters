@@ -12,35 +12,35 @@ from torchvision.transforms.functional import to_tensor
 class ImageDataset(Dataset):
     """
     A custom dataset that loads images and their associated binary class labels
-    inferred from filenames. Class label 0 indicates larvae and 1 indicates non-larvae.
+    inferred from file names. Class label 0 indicates larvae and 1 indicates non-larvae.
     """
 
     def __init__(
         self,
-        filenames: List[Path],
+        paths: List[Path],
         transform: Callable[[Image.Image], Tensor] = to_tensor,
     ):
-        self.filenames = filenames
-        self.targets = [self._get_target_from_filename(fname) for fname in filenames]
+        self.paths = paths
+        self.targets = [self._get_target_from_path(p) for p in paths]
         self.transform = transform
 
     def __len__(self) -> int:
-        return len(self.filenames)
+        return len(self.paths)
 
     def __getitem__(self, index: int) -> Tuple[Tensor, int]:
-        filename = self.filenames[index]
+        path = self.paths[index]
         target = self.targets[index]
-        image = Image.open(filename)
+        image = Image.open(path)
         input_image = self.transform(image)
         return input_image, target
 
-    def _get_target_from_filename(self, filename: Path) -> int:
+    def _get_target_from_path(self, path: Path) -> int:
         """
-        Extract binary class label from filename.
-        Assumes filenames are formatted as '<label>_<...>.png', where label ∈ {1, 2}.
+        Extract binary class label from path.
+        Assumes file names are formatted as '<label>_<...>.png', where label ∈ {1, 2}.
         Returns 0 for larvae and 1 for non-larvae.
         """
-        label = int(filename.stem.split("_")[0])
+        label = int(path.stem.split("_")[0])
         return label - 1
 
 
@@ -67,22 +67,22 @@ class ImageDataLoadBuilder:
         self._batchsize = batchsize
         self._data_dir = data_dir
 
-    def get_tvt_splited_filenames(self) -> Tuple[List[Path], List[Path], List[Path]]:
+    def get_tvt_splited_paths(self) -> Tuple[List[Path], List[Path], List[Path]]:
         """
-        Load and split image file paths into train, validation, and test sets based on provided proportions.
+        Load and split image paths into train, validation, and test sets based on provided proportions.
         """
-        filenames = sorted(self._data_dir.glob("*.png"))
-        np.random.shuffle(filenames)
+        paths = sorted(self._data_dir.glob("*.png"))
+        np.random.shuffle(paths)
 
-        total = len(filenames)
+        total = len(paths)
         n_train = int(total * self._train_perc)
         n_valid = int(total * self._valid_perc)
 
-        train = filenames[:n_train]
-        valid = filenames[n_train : n_train + n_valid]
-        test = filenames[n_train + n_valid :]
+        train_paths = paths[:n_train]
+        valid_paths = paths[n_train : n_train + n_valid]
+        test_paths = paths[n_train + n_valid :]
 
-        return train, valid, test
+        return train_paths, valid_paths, test_paths
 
     def get_tvt_splited_datasets(
         self,
@@ -90,11 +90,11 @@ class ImageDataLoadBuilder:
         """
         Create ImageDataset instances for train, validation, and test splits.
         """
-        train_files, valid_files, test_files = self.get_tvt_splited_filenames()
+        train_paths, valid_paths, test_paths = self.get_tvt_splited_paths()
 
-        train_ds = ImageDataset(train_files, self._train_transform)
-        valid_ds = ImageDataset(valid_files, self._valid_transform)
-        test_ds = ImageDataset(test_files, self._test_transform)
+        train_ds = ImageDataset(train_paths, self._train_transform)
+        valid_ds = ImageDataset(valid_paths, self._valid_transform)
+        test_ds = ImageDataset(test_paths, self._test_transform)
 
         return train_ds, valid_ds, test_ds
 
