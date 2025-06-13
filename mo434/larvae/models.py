@@ -59,7 +59,7 @@ def mlp_block(
     return nn.Sequential(*layers)
 
 
-class ConvNet(nn.Module):
+class FlexCNNClassifier(nn.Module):
     """
     A configurable convolutional neural network for classification tasks.
     """
@@ -74,7 +74,7 @@ class ConvNet(nn.Module):
         mlp_layers: Optional[List[int]] = None,
     ) -> None:
         """
-        Initializes the ConvNet.
+        Initializes the FlexCNNClassifier.
 
         Args:
             input_shape: Tuple with (C, H, W) of the input image.
@@ -124,6 +124,14 @@ class ConvNet(nn.Module):
 
         self._initialize_weights()
 
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass through the network.
+        """
+        x = self.features(x)
+        x = torch.flatten(x, start_dim=1)
+        return self.classifier(x)
+
     def _get_flattened_size(self, input_shape: Tuple[int, int, int]) -> int:
         """
         Computes the number of features after flattening the output from the feature extractor.
@@ -149,11 +157,3 @@ class ConvNet(nn.Module):
                 m.weight.data.normal_(0, 0.01)
                 if m.bias is not None:
                     m.bias.data.zero_()
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Forward pass through the network.
-        """
-        x = self.features(x)
-        x = torch.flatten(x, start_dim=1)
-        return self.classifier(x)
