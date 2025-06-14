@@ -96,10 +96,10 @@ class PretrainedCNNClassifier(nn.Module):
         Builds the classifier head.
         """
         layers = [
-            nn.Linear(in_features, 128),
+            nn.Linear(in_features, 64),
             nn.ReLU(inplace=True),
         ]
         if use_dropout:
-            layers.append(nn.Dropout(0.3))
-        layers.append(nn.Linear(128, num_classes))
+            layers.append(nn.Dropout(0.2))
+        layers.append(nn.Linear(64, num_classes))
         return nn.Sequential(*layers)

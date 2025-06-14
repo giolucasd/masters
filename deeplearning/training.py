@@ -183,6 +183,22 @@ class Trainer:
         plt.tight_layout()
         plt.show()
 
+    def test(self, test_loader: DataLoader) -> None:
+        self._load_best_model()
+        test_loss, test_metrics = self.evaluate(test_loader)
+        metrics_str = " | ".join(
+            f"Test {name}: {value:.4f}"
+            for name, value in zip(self.metric_names, test_metrics)
+        )
+        print(f"Test Loss: {test_loss:.4f} | {metrics_str}")
+
+    def _load_best_model(self) -> None:
+        print("📦 Loading best model...")
+        state_dict = torch.load(self.checkpoint_path, weights_only=True)
+        self.model.load_state_dict(state_dict=state_dict)
+        self.model.eval()
+        print("✅ Done!")
+
     def _train_one_epoch(
         self,
         train_loader: DataLoader,
