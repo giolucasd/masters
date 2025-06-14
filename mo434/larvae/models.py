@@ -3,7 +3,7 @@ from typing import List, Literal, Optional, Tuple
 
 import torch
 from torch import Tensor, nn
-from torchvision import models
+from torchvision import models as torchmodels
 
 
 class FlexCNNClassifier(nn.Module):
@@ -404,11 +404,14 @@ class PretrainedCNNClassifier(nn.Module):
         Forward pass through feature extractor and classifier.
         """
         x = self.features(x)
+        
         if self.backbone_name == "squeezenet1_0":
             x = torch.flatten(x, 1)
         else:
             x = x.mean([2, 3])  # Global average pooling for other backbones
+        
         x = self.classifier(x)
+        
         return x
 
     def _load_backbone(self, backbone: str):
@@ -419,17 +422,20 @@ class PretrainedCNNClassifier(nn.Module):
             A tuple of (feature_extractor, num_output_features)
         """
         if backbone == "mobilenet_v2":
-            model = models.mobilenet_v2(pretrained=True)
+            model = torchmodels.mobilenet_v2(weights=torchmodels.MobileNet_V2_Weights.DEFAULT)
             features = model.features
             out_features = model.last_channel
 
         elif backbone == "squeezenet1_0":
-            model = models.squeezenet1_0(pretrained=True)
-            features = model.features
-            out_features = 512  # Final conv layer channels
+            model = torchmodels.squeezenet1_0(weights=torchmodels.SqueezeNet1_0_Weights.DEFAULT)
+            features = nn.Sequential(
+                model.features,
+                nn.AdaptiveAvgPool2d((1, 1)),
+            )
+            out_features = 512 # Final conv layer channels
 
         elif backbone == "resnet18":
-            model = models.resnet18(pretrained=True)
+            model = torchmodels.resnet18(weights=torchmodels.ResNet18_Weights.DEFAULT)
             modules = list(model.children())[:-2]
             features = nn.Sequential(*modules)
             out_features = model.fc.in_features
