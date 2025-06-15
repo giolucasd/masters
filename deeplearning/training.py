@@ -249,7 +249,7 @@ class Trainer:
             torch.save(self.model.state_dict(), self.checkpoint_path)
             print("  🔥 New best model saved!")
         else:
-            print("  ❄️ Performance droped, model won't be saved!")
+            print("  ❄️ No improvement, model won't be saved!")
             self.early_stop_counter += 1
 
     def _step_scheduler(self) -> None:
