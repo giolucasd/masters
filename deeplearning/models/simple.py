@@ -18,6 +18,7 @@ class FlexCNNClassifier(nn.Module):
         use_batchnorm: bool = True,
         conv_channels: Optional[List[int]] = None,
         mlp_layers: Optional[List[int]] = None,
+        device: Optional[torch.device] = None,
     ) -> None:
         """
         Initializes the FlexCNNClassifier.
@@ -29,9 +30,11 @@ class FlexCNNClassifier(nn.Module):
             use_batchnorm: Whether to use BatchNorm in conv blocks.
             conv_channels: List of convolutional channel sizes.
             mlp_layers: List of MLP hidden layer sizes.
+            device: Torch device to use (e.g., torch.device('cuda') or torch.device('cpu')).
         """
         super().__init__()
 
+        self.device = device or torch.device("cpu")
         in_channels = input_shape[0]
         conv_channels = conv_channels or [6, 12, 24]
         mlp_layers = mlp_layers or [16]
@@ -48,7 +51,7 @@ class FlexCNNClassifier(nn.Module):
                 )
             )
             in_channels = out_channels
-        self.features = nn.Sequential(*layers)
+        self.features = nn.Sequential(*layers).to(self.device)
 
         # Compute flattened feature size
         fc_in_features = self._get_flattened_size(input_shape)
@@ -66,7 +69,7 @@ class FlexCNNClassifier(nn.Module):
             fc_in_features = hidden
 
         mlp_blocks.append(nn.Linear(fc_in_features, num_classes))
-        self.classifier = nn.Sequential(*mlp_blocks)
+        self.classifier = nn.Sequential(*mlp_blocks).to(self.device)
 
         self._initialize_weights()
 
@@ -74,6 +77,7 @@ class FlexCNNClassifier(nn.Module):
         """
         Forward pass through the network.
         """
+        x = x.to(self.device)
         x = self.features(x)
         x = x.flatten(start_dim=1)
         return self.classifier(x)
@@ -83,7 +87,7 @@ class FlexCNNClassifier(nn.Module):
         Computes the number of features after flattening the output from the feature extractor.
         """
         with torch.no_grad():
-            dummy_input = torch.zeros(1, *input_shape)
+            dummy_input = torch.zeros(1, *input_shape, device=self.device)
             output = self.features(dummy_input)
             return output.view(1, -1).shape[1]
 
