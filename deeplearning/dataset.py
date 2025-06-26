@@ -4,6 +4,7 @@ from typing import Callable, List, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
+from sklearn.model_selection import train_test_split
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms.functional import to_tensor
@@ -66,19 +67,28 @@ class ImageDataLoadBuilder:
         self._data_dir = data_dir
 
     def get_tvt_splited_paths(self) -> Tuple[List[Path], List[Path], List[Path]]:
-        """
-        Load and split image paths into train, validation, and test sets based on provided proportions.
-        """
         paths = sorted(self._data_dir.glob("*.png"))
-        np.random.shuffle(paths)
+        labels = [int(p.stem.split("_")[0]) - 1 for p in paths]
 
-        total = len(paths)
-        n_train = int(total * self._train_perc)
-        n_valid = int(total * self._valid_perc)
+        # First, split into train+valid and test
+        test_perc = 1 - (self._train_perc + self._valid_perc)
+        tv_paths, test_paths, tv_labels, _ = train_test_split(
+            paths,
+            labels,
+            test_size=test_perc,
+            stratify=labels,
+            random_state=42,
+        )
 
-        train_paths = paths[:n_train]
-        valid_paths = paths[n_train : n_train + n_valid]
-        test_paths = paths[n_train + n_valid :]
+        # Then split train and validation
+        rel_valid_size = self._valid_perc / (self._train_perc + self._valid_perc)
+        train_paths, valid_paths, _, _ = train_test_split(
+            tv_paths,
+            tv_labels,
+            test_size=rel_valid_size,
+            stratify=tv_labels,
+            random_state=42,
+        )
 
         return train_paths, valid_paths, test_paths
 
