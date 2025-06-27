@@ -111,7 +111,7 @@ class Trainer:
                 print("⏹️ Early stopping triggered.")
                 break
 
-            self._step_scheduler()
+            self._step_scheduler(val_loss)
 
     def evaluate(self, dataloader: DataLoader) -> Tuple[float, List[float]]:
         """
@@ -252,11 +252,14 @@ class Trainer:
             print("  ❄️ No improvement, model won't be saved!")
             self.early_stop_counter += 1
 
-    def _step_scheduler(self) -> None:
+    def _step_scheduler(self, val_loss: float) -> None:
         """
         Updates the learning rate scheduler if available.
 
         NOTE: Does not work with ReduceLROnPlateau.
         """
         if self.scheduler is not None:
-            self.scheduler.step()
+            if isinstance(self.scheduler, ReduceLROnPlateau):
+                self.scheduler.step(metrics=val_loss)
+            else:
+                self.scheduler.step()
