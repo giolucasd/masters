@@ -3,6 +3,8 @@ from typing import Callable, Dict, List, Optional, Tuple
 import matplotlib.pyplot as plt
 import torch
 from torch import nn
+from torch.amp import GradScaler, autocast
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -38,6 +40,7 @@ class Trainer:
         self.scheduler = scheduler
         self.checkpoint_path = checkpoint_path
         self.patience = patience
+        self.scaler = GradScaler() if device.type == "cuda" else None
 
         try:
             self.criterion = criterion.to(device)
@@ -227,10 +230,20 @@ class Trainer:
         for x, y in progress_bar:
             x, y = x.to(self.device), y.to(self.device)
             self.optimizer.zero_grad()
-            outputs = self.model(x)
-            loss = self.criterion(outputs, y)
-            loss.backward()
-            self.optimizer.step()
+
+            if self.scaler is not None:
+                with autocast(device_type=self.device.type):    # TODO: remove?
+                    outputs = self.model(x)
+                    loss = self.criterion(outputs, y)
+                self.scaler.scale(loss).backward()
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+            else:
+                outputs = self.model(x)
+                loss = self.criterion(outputs, y)
+                loss.backward()
+                self.optimizer.step()
+
             running_loss += loss.item() * x.size(0)
             progress_bar.set_postfix(train_loss=loss.item())
 
