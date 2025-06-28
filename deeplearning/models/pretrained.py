@@ -17,6 +17,7 @@ class PretrainedCNNClassifier(nn.Module):
         num_classes: int = 1,
         backbone: Literal["mobilenet_v2", "squeezenet1_0", "resnet18"] = "mobilenet_v2",
         use_dropout: bool = True,
+        device: torch.device = torch.device("cpu"),
     ) -> None:
         """
         Initializes the model with a chosen pretrained backbone.
@@ -26,14 +27,17 @@ class PretrainedCNNClassifier(nn.Module):
             num_classes: Number of output classes (default 1 for binary classification).
             backbone: Backbone architecture to use: 'mobilenet_v2', 'squeezenet1_0', or 'resnet18'.
             use_dropout: Whether to use dropout in the classifier head.
+            device: The device to load the model to (CPU or CUDA).
         """
         super().__init__()
         self.backbone_name = backbone
         self.use_dropout = use_dropout
+        self.device = device
 
         self.features, in_features = self._load_backbone(backbone)
-
         self.classifier = self._make_classifier(in_features, num_classes, use_dropout)
+
+        self.to(device)  # Ensure the entire model is moved to the specified device
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -72,7 +76,7 @@ class PretrainedCNNClassifier(nn.Module):
                 model.features,
                 nn.AdaptiveAvgPool2d((1, 1)),
             )
-            out_features = 512  # Final conv layer channels
+            out_features = 512
 
         elif backbone == "resnet18":
             model = torchmodels.resnet18(weights=torchmodels.ResNet18_Weights.DEFAULT)
@@ -83,11 +87,10 @@ class PretrainedCNNClassifier(nn.Module):
         else:
             raise ValueError(f"Unsupported backbone '{backbone}'.")
 
-        # Freeze feature extractor for small datasets
         for param in features.parameters():
             param.requires_grad = False
 
-        return features, out_features
+        return features.to(self.device), out_features
 
     def _make_classifier(
         self, in_features: int, num_classes: int, use_dropout: bool
@@ -96,10 +99,10 @@ class PretrainedCNNClassifier(nn.Module):
         Builds the classifier head.
         """
         layers = [
-            nn.Linear(in_features, 64),
+            nn.Linear(in_features, 96),
             nn.ReLU(inplace=True),
         ]
         if use_dropout:
             layers.append(nn.Dropout(0.2))
-        layers.append(nn.Linear(64, num_classes))
+        layers.append(nn.Linear(96, num_classes))
         return nn.Sequential(*layers)
