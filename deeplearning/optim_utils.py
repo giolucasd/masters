@@ -56,7 +56,7 @@ def build_optimizer_and_scheduler(
     model: Module,
     config: Dict[str, Union[float, str, int]],
     train_loader_len: Optional[int] = None,
-    total_epochs: int = 20,
+    total_epochs: int = 50,
 ) -> Tuple[Optimizer, Union[LRScheduler, WarmupReduceLROnPlateau]]:
     """
     Creates an optimizer and learning rate scheduler based on the given configuration.
@@ -77,6 +77,8 @@ def build_optimizer_and_scheduler(
     warmup_epochs: int = config.get("warmup_epochs", 8)
     max_lr: float = config.get("max_lr", 1e-3)
     eta_min: float = config.get("eta_min", 1e-6)
+    factor: float = config.get("factor", 0.5)
+    patience: int = config.get("patience", 3)
 
     optimizer = Adam(model.parameters(), lr=lr, weight_decay=wd)
 
@@ -105,9 +107,9 @@ def build_optimizer_and_scheduler(
             max_lr=max_lr,
             steps_per_epoch=train_loader_len,
             epochs=total_epochs,
-            pct_start=0.1,
+            pct_start=warmup_epochs / total_epochs,
             div_factor=max_lr / lr,
-            final_div_factor=max_lr / eta_min,
+            final_div_factor=lr / eta_min,
             anneal_strategy="cos",
         )
 
@@ -132,9 +134,8 @@ def build_optimizer_and_scheduler(
         plateau_scheduler = ReduceLROnPlateau(
             optimizer,
             mode="max",
-            factor=0.5,
-            patience=3,
-            verbose=True,
+            factor=factor,
+            patience=patience,
             min_lr=eta_min,
         )
         scheduler = WarmupReduceLROnPlateau(
