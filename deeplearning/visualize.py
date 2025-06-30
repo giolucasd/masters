@@ -5,11 +5,18 @@ from typing import OrderedDict as OrderedDictType
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 import torch
 from sklearn.manifold import TSNE
 from torch import nn
 from torch.utils.data import DataLoader
 
+sns.set_theme(style="white")
+sns.set_context("notebook")
+plt.rcParams['axes.spines.top'] = True
+plt.rcParams['axes.spines.right'] = True
+plt.rcParams['axes.spines.left'] = True
+plt.rcParams['axes.spines.bottom'] = True
 
 class Visualizer:
     """
@@ -155,17 +162,22 @@ class Visualizer:
             projection_by_layer (OrderedDict[str, np.ndarray]): 2D projections by layer.
             all_labels (np.ndarray): Corresponding labels.
         """
+        label_names = np.array(["larvae", "non-larvae"])
+        all_labels_named = label_names[all_labels.astype(int)]
+
         for layer, embedded in projection_by_layer.items():
             fig = plt.figure(figsize=(8, 8))
-            plt.scatter(
-                embedded[:, 0],
-                embedded[:, 1],
-                c=all_labels,
-                cmap="tab20b",
+            sns.scatterplot(
+                x=embedded[:, 0],
+                y=embedded[:, 1],
+                hue=all_labels_named,
+                palette="tab10",
+                legend="full",
+                s=40,
+                edgecolor="none",
             )
             plt.axis("off")
             plt.title(layer)
-            plt.colorbar()
             plt.show()
             plt.close(fig)
 
@@ -200,7 +212,9 @@ class Visualizer:
 
         return activations
 
-    def _normalize_and_resize_cam(self, cam: np.ndarray, target_shape: Tuple[int, int]) -> np.ndarray:
+    def _normalize_and_resize_cam(
+        self, cam: np.ndarray, target_shape: Tuple[int, int]
+    ) -> np.ndarray:
         """
         Applies ReLU, normalizes, and resizes the CAM to the target shape.
 
@@ -227,11 +241,13 @@ class Visualizer:
         def save_activation(name: str):
             def hook(module, input, output):
                 activations[name] = output
+
             return hook
 
         def save_gradient(name: str):
             def hook(module, grad_input, grad_output):
                 gradients[name] = grad_output[0]
+
             return hook
 
         for name, module in self.model.named_modules():
@@ -265,7 +281,9 @@ class Visualizer:
         """
         image_np = image_tensor.permute(1, 2, 0).cpu().numpy()
         image_np = (
-            255 * (image_np - np.min(image_np)) / (np.max(image_np) - np.min(image_np) + 1e-8)
+            255
+            * (image_np - np.min(image_np))
+            / (np.max(image_np) - np.min(image_np) + 1e-8)
         )
         return image_np.astype("uint8")
 
@@ -283,10 +301,6 @@ class Visualizer:
             heatmap (np.ndarray): Heatmap to overlay.
             scale (int): Scaling factor for display size.
         """
-        import cv2
-        import matplotlib.pyplot as plt
-        import numpy as np
-
         heatmap_uint8 = np.uint8(255.0 * heatmap)
         width = int(heatmap.shape[1] * scale)
         height = int(heatmap.shape[0] * scale)
@@ -327,7 +341,9 @@ class Visualizer:
         logits = self.model(xin)
         pred = logits.argmax(dim=1)
         if self.labels_map:
-            print(f"  Predicted label is {self.labels_map[pred.cpu().detach().numpy()[0]]}!")
+            print(
+                f"  Predicted label is {self.labels_map[pred.cpu().detach().numpy()[0]]}!"
+            )
 
         self.model.zero_grad()
         logits[0, pred.item()].backward(retain_graph=True)
@@ -336,7 +352,9 @@ class Visualizer:
             h.remove()
 
         if not activations or not gradients:
-            raise RuntimeError("No activations or gradients captured for Conv2d layers.")
+            raise RuntimeError(
+                "No activations or gradients captured for Conv2d layers."
+            )
 
         last_layer = list(activations.keys())[-1]
         activ = activations[last_layer].detach()

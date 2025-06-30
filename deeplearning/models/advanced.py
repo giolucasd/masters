@@ -8,15 +8,21 @@ from torch import Tensor, nn
 class SEBlock(nn.Module):
     """Squeeze-and-Excitation block for channel-wise attention."""
 
-    def __init__(self, channels: int, reduction: int = 16) -> None:
+    def __init__(
+        self,
+        channels: int,
+        reduction: int = 16,
+        device: torch.device = torch.device("cpu"),
+    ) -> None:
         super().__init__()
+        self.device = device
         self.pool = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Sequential(
             nn.Linear(channels, channels // reduction),
             nn.ReLU(),
             nn.Linear(channels // reduction, channels),
             nn.Sigmoid(),
-        )
+        ).to(self.device)
 
     def forward(self, x: Tensor) -> Tensor:
         b, c, _, _ = x.size()
@@ -29,20 +35,25 @@ class CBAM(nn.Module):
     """Convolutional Block Attention Module (Channel and Spatial attention)."""
 
     def __init__(
-        self, channels: int, reduction: int = 16, kernel_size: int = 7
+        self,
+        channels: int,
+        reduction: int = 16,
+        kernel_size: int = 7,
+        device: torch.device = torch.device("cpu"),
     ) -> None:
         super().__init__()
+        self.device = device
         self.channel_attention = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
             nn.Conv2d(channels, channels // reduction, 1, bias=False),
             nn.ReLU(),
             nn.Conv2d(channels // reduction, channels, 1, bias=False),
             nn.Sigmoid(),
-        )
+        ).to(self.device)
         self.spatial_attention = nn.Sequential(
             nn.Conv2d(2, 1, kernel_size, padding=kernel_size // 2, bias=False),
             nn.Sigmoid(),
-        )
+        ).to(self.device)
 
     def forward(self, x: Tensor) -> Tensor:
         # Channel attention
@@ -60,15 +71,18 @@ class CBAM(nn.Module):
 class ResidualBlock(nn.Module):
     """Residual block with two convolutional layers."""
 
-    def __init__(self, channels: int) -> None:
+    def __init__(
+        self, channels: int, device: torch.device = torch.device("cpu")
+    ) -> None:
         super().__init__()
+        self.device = device
         self.conv = nn.Sequential(
             nn.Conv2d(channels, channels, kernel_size=3, padding=1),
             nn.BatchNorm2d(channels),
             nn.ReLU(),
             nn.Conv2d(channels, channels, kernel_size=3, padding=1),
             nn.BatchNorm2d(channels),
-        )
+        ).to(self.device)
         self.relu = nn.ReLU()
 
     def forward(self, x: Tensor) -> Tensor:
@@ -78,26 +92,34 @@ class ResidualBlock(nn.Module):
 class InceptionBlock(nn.Module):
     """Simplified Inception block with 1x1, 3x3, 5x5 and pooling branches."""
 
-    def __init__(self, in_channels: int, out_channels: int) -> None:
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        device: torch.device = torch.device("cpu"),
+    ) -> None:
         super().__init__()
-        self.branch1 = nn.Conv2d(in_channels, out_channels, kernel_size=1)
+        self.device = device
+        self.branch1 = nn.Conv2d(in_channels, out_channels, kernel_size=1).to(
+            self.device
+        )
 
         self.branch3 = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=1),
             nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
-        )
+        ).to(self.device)
 
         self.branch5 = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=1),
             nn.Conv2d(out_channels, out_channels, kernel_size=5, padding=2),
-        )
+        ).to(self.device)
 
         self.pool_proj = nn.Sequential(
             nn.MaxPool2d(kernel_size=3, stride=1, padding=1),
             nn.Conv2d(in_channels, out_channels, kernel_size=1),
-        )
+        ).to(self.device)
 
-        self.output_bn = nn.BatchNorm2d(4 * out_channels)
+        self.output_bn = nn.BatchNorm2d(4 * out_channels).to(self.device)
 
     def forward(self, x: Tensor) -> Tensor:
         outputs = [
@@ -120,9 +142,11 @@ class EnhancedCNNClassifier(nn.Module):
         input_shape: Tuple[int, int, int],
         num_classes: int,
         block_type: str = "vanilla",
+        device: torch.device = torch.device("cpu"),
     ) -> None:
         super().__init__()
 
+        self.device = device
         self.block_type = block_type.lower()
         in_channels = input_shape[0]
         channels = [8, 16, 32, 64]
@@ -132,19 +156,19 @@ class EnhancedCNNClassifier(nn.Module):
             block = self._make_block(in_channels, out_channels)
             layers.append(block)
             in_channels = out_channels
-        self.features = nn.Sequential(*layers)
+        self.features = nn.Sequential(*layers).to(self.device)
 
         self.flatten_dim = self._get_flattened_size(input_shape)
 
         self.classifier = nn.Sequential(
-            nn.Linear(self.flatten_dim, 128),
+            nn.Linear(self.flatten_dim, 64),
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(128, 32),
+            nn.Linear(64, 8),
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(32, num_classes),
-        )
+            nn.Linear(8, num_classes),
+        ).to(self.device)
 
         self._initialize_weights()
 
@@ -155,45 +179,44 @@ class EnhancedCNNClassifier(nn.Module):
                 nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
                 nn.BatchNorm2d(out_channels),
                 nn.ReLU(),
-                ResidualBlock(out_channels),
+                ResidualBlock(out_channels, device=self.device),
                 nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
-            )
+            ).to(self.device)
         elif self.block_type == "inception":
             return nn.Sequential(
-                InceptionBlock(
-                    in_channels, out_channels // 4
-                ),  # might break if not using 2**n
+                InceptionBlock(in_channels, out_channels // 4, device=self.device),
                 nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
-            )
+            ).to(self.device)
         elif self.block_type == "se":
             return nn.Sequential(
                 nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
                 nn.ReLU(),
-                SEBlock(out_channels),
+                SEBlock(out_channels, device=self.device),
                 nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
-            )
+            ).to(self.device)
         elif self.block_type == "cbam":
             return nn.Sequential(
                 nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
                 nn.ReLU(),
-                CBAM(out_channels),
+                CBAM(out_channels, device=self.device),
                 nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
-            )
+            ).to(self.device)
         else:  # 'vanilla'
             return nn.Sequential(
                 nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
                 nn.BatchNorm2d(out_channels),
                 nn.ReLU(),
                 nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
-            )
+            ).to(self.device)
 
     def _get_flattened_size(self, input_shape: Tuple[int, int, int]) -> int:
         """Returns the number of flattened features after the feature extractor."""
         with torch.no_grad():
-            dummy = torch.zeros(1, *input_shape)
+            dummy = torch.zeros(1, *input_shape, device=self.device)
             return self.features(dummy).view(1, -1).shape[1]
 
     def forward(self, x: Tensor) -> Tensor:
+        x = x.to(self.device)
         x = self.features(x)
         x = x.flatten(start_dim=1)
         return self.classifier(x)

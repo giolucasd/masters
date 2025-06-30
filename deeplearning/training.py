@@ -1,12 +1,21 @@
 from typing import Callable, Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
 import torch
 from torch import nn
 from torch.amp import GradScaler, autocast
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+
+sns.set_theme(style="whitegrid")
+sns.set_context("notebook")
+plt.rcParams['axes.spines.top'] = True
+plt.rcParams['axes.spines.right'] = True
+plt.rcParams['axes.spines.left'] = True
+plt.rcParams['axes.spines.bottom'] = True
 
 
 class Trainer:
@@ -160,30 +169,61 @@ class Trainer:
             return
 
         epochs = range(1, len(self.history["train_loss"]) + 1)
-        num_metrics = len(self.metric_names)
 
-        plt.figure(figsize=(12, 5 if num_metrics <= 1 else 4 * num_metrics))
-
-        # Loss subplot
-        plt.subplot(1, 2, 1)
-        plt.plot(epochs, self.history["train_loss"], label="Train Loss")
-        plt.plot(epochs, self.history["val_loss"], label="Val Loss")
-        plt.xlabel("Epoch")
-        plt.ylabel("Loss")
-        plt.title("Loss over Epochs")
-        plt.legend()
-
-        # Metrics subplot(s)
-        plt.subplot(1, 2, 2)
+        # Prepare data for seaborn
+        data = {
+            "Epoch": [],
+            "Value": [],
+            "Type": [],
+            "Metric": [],
+        }
+        # Loss
+        for i, epoch in enumerate(epochs):
+            data["Epoch"].append(epoch)
+            data["Value"].append(self.history["train_loss"][i])
+            data["Type"].append("Train")
+            data["Metric"].append("Loss")
+            data["Epoch"].append(epoch)
+            data["Value"].append(self.history["val_loss"][i])
+            data["Type"].append("Val")
+            data["Metric"].append("Loss")
+        # Metrics
         for name in self.metric_names:
-            plt.plot(epochs, self.history[f"train_{name}"], label=f"Train {name}")
-            plt.plot(epochs, self.history[f"val_{name}"], label=f"Val {name}")
-        plt.xlabel("Epoch")
-        plt.ylabel("Metric Value")
-        plt.title("Metrics over Epochs")
-        plt.legend()
+            for i, epoch in enumerate(epochs):
+                data["Epoch"].append(epoch)
+                data["Value"].append(self.history[f"train_{name}"][i])
+                data["Type"].append("Train")
+                data["Metric"].append(name)
+                data["Epoch"].append(epoch)
+                data["Value"].append(self.history[f"val_{name}"][i])
+                data["Type"].append("Val")
+                data["Metric"].append(name)
 
-        plt.tight_layout()
+        df = pd.DataFrame(data)
+
+        # Plot with seaborn
+        g = sns.relplot(
+            data=df,
+            x="Epoch",
+            y="Value",
+            hue="Type",
+            col="Metric",
+            kind="line",
+            facet_kws={"sharey": False, "sharex": True},
+            height=4,
+            aspect=1.5,
+            palette="tab10",
+        )
+        g.set_titles("{col_name}")
+        g.set_axis_labels("Epoch", "Value")
+        g.tight_layout()
+
+        for ax in g.axes.flatten():
+            ax.spines['top'].set_visible(True)
+            ax.spines['right'].set_visible(True)
+            ax.spines['left'].set_visible(True)
+            ax.spines['bottom'].set_visible(True)
+
         plt.show()
 
     def test(self, test_loader: DataLoader) -> None:
@@ -232,7 +272,7 @@ class Trainer:
             self.optimizer.zero_grad()
 
             if self.scaler is not None:
-                with autocast(device_type=self.device.type):    # TODO: remove?
+                with autocast(device_type=self.device.type):  # TODO: remove?
                     outputs = self.model(x)
                     loss = self.criterion(outputs, y)
                 self.scaler.scale(loss).backward()
