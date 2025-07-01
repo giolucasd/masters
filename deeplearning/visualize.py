@@ -13,10 +13,11 @@ from torch.utils.data import DataLoader
 
 sns.set_theme(style="white")
 sns.set_context("notebook")
-plt.rcParams['axes.spines.top'] = True
-plt.rcParams['axes.spines.right'] = True
-plt.rcParams['axes.spines.left'] = True
-plt.rcParams['axes.spines.bottom'] = True
+plt.rcParams["axes.spines.top"] = True
+plt.rcParams["axes.spines.right"] = True
+plt.rcParams["axes.spines.left"] = True
+plt.rcParams["axes.spines.bottom"] = True
+
 
 class Visualizer:
     """

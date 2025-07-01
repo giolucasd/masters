@@ -12,10 +12,10 @@ from torchvision.transforms.functional import to_tensor
 
 sns.set_theme(style="white")
 sns.set_context("notebook")
-plt.rcParams['axes.spines.top'] = True
-plt.rcParams['axes.spines.right'] = True
-plt.rcParams['axes.spines.left'] = True
-plt.rcParams['axes.spines.bottom'] = True
+plt.rcParams["axes.spines.top"] = True
+plt.rcParams["axes.spines.right"] = True
+plt.rcParams["axes.spines.left"] = True
+plt.rcParams["axes.spines.bottom"] = True
 
 
 class ImageDataset(Dataset):

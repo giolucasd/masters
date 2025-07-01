@@ -54,6 +54,20 @@ class PretrainedCNNClassifier(nn.Module):
 
         return x
 
+    def freeze_backbone(self):
+        """
+        Freezes the backbone feature extractor parameters.
+        """
+        for param in self.features.parameters():
+            param.requires_grad = False
+
+    def unfreeze_backbone(self):
+        """
+        Unfreezes the backbone feature extractor parameters.
+        """
+        for param in self.features.parameters():
+            param.requires_grad = True
+
     def _load_backbone(self, backbone: str):
         """
         Loads the specified pretrained backbone and removes the classification head.
@@ -87,10 +101,16 @@ class PretrainedCNNClassifier(nn.Module):
         else:
             raise ValueError(f"Unsupported backbone '{backbone}'.")
 
-        for param in features.parameters():
-            param.requires_grad = False
+        self.set_relu_to_non_inplace(features)
 
         return features.to(self.device), out_features
+
+    def set_relu_to_non_inplace(self, module):
+        for child in module.children():
+            if isinstance(child, torch.nn.ReLU):
+                child.inplace = False
+            else:
+                self.set_relu_to_non_inplace(child)
 
     def _make_classifier(
         self, in_features: int, num_classes: int, use_dropout: bool

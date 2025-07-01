@@ -12,10 +12,10 @@ from tqdm import tqdm
 
 sns.set_theme(style="whitegrid")
 sns.set_context("notebook")
-plt.rcParams['axes.spines.top'] = True
-plt.rcParams['axes.spines.right'] = True
-plt.rcParams['axes.spines.left'] = True
-plt.rcParams['axes.spines.bottom'] = True
+plt.rcParams["axes.spines.top"] = True
+plt.rcParams["axes.spines.right"] = True
+plt.rcParams["axes.spines.left"] = True
+plt.rcParams["axes.spines.bottom"] = True
 
 
 class Trainer:
@@ -219,10 +219,10 @@ class Trainer:
         g.tight_layout()
 
         for ax in g.axes.flatten():
-            ax.spines['top'].set_visible(True)
-            ax.spines['right'].set_visible(True)
-            ax.spines['left'].set_visible(True)
-            ax.spines['bottom'].set_visible(True)
+            ax.spines["top"].set_visible(True)
+            ax.spines["right"].set_visible(True)
+            ax.spines["left"].set_visible(True)
+            ax.spines["bottom"].set_visible(True)
 
         plt.show()
 
