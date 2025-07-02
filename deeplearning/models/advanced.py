@@ -1,9 +1,7 @@
-import math
 from typing import Tuple
 
 import torch
 from torch import Tensor, nn
-from torch.nn import init
 
 
 class SEBlock(nn.Module):
@@ -94,16 +92,16 @@ class CBAM(nn.Module):
         """Initializes weights for Conv2d, BatchNorm2d, and Linear layers."""
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                init.kaiming_normal_(m.weight, mode="fan_out")
+                nn.init.kaiming_normal_(m.weight, mode="fan_out")
                 if m.bias is not None:
-                    init.constant_(m.bias, 0)
+                    nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.BatchNorm2d):
-                init.constant_(m.weight, 1)
-                init.constant_(m.bias, 0)
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.Linear):
-                init.normal_(m.weight, std=0.001)
+                nn.init.normal_(m.weight, std=0.001)
                 if m.bias is not None:
-                    init.constant_(m.bias, 0)
+                    nn.init.constant_(m.bias, 0)
 
     def forward(self, x: Tensor) -> Tensor:
         residual = x
@@ -269,14 +267,18 @@ class EnhancedCNNClassifier(nn.Module):
         return self.classifier(x)
 
     def _initialize_weights(self) -> None:
-        """Initializes Conv2d and Linear layers using standard initialization."""
+        """
+        Initializes weights for Conv2d and Linear layers.
+        - Uses Kaiming initialization for Conv2d.
+        - Uses normal initialization for Linear layers.
+        """
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                n = m.kernel_size[0] * m.kernel_size[1] * m.in_channels
-                m.weight.data.normal_(0, math.sqrt(2.0 / n))
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
                 if m.bias is not None:
-                    m.bias.data.zero_()
+                    nn.init.constant_(m.bias, 0.0)
+
             elif isinstance(m, nn.Linear):
-                m.weight.data.normal_(0, 0.01)
+                nn.init.normal_(m.weight, mean=0.0, std=0.01)
                 if m.bias is not None:
-                    m.bias.data.zero_()
+                    nn.init.constant_(m.bias, 0.0)

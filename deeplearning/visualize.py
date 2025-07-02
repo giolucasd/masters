@@ -11,7 +11,7 @@ from sklearn.manifold import TSNE
 from torch import nn
 from torch.utils.data import DataLoader
 
-sns.set_theme(style="white")
+sns.set_theme(style="whitegrid")
 sns.set_context("notebook")
 plt.rcParams["axes.spines.top"] = True
 plt.rcParams["axes.spines.right"] = True

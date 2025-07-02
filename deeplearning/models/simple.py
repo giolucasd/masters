@@ -1,4 +1,3 @@
-import math
 from typing import List, Optional, Tuple
 
 import torch
@@ -145,19 +144,19 @@ class FlexCNNClassifier(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def _initialize_weights(self):
+    def _initialize_weights(self) -> None:
         """
-        Initializes weights for Conv2d and Linear layers using standard strategies:
-        - Conv2d: He initialization (normal distribution with std = sqrt(2 / fan_in))
-        - Linear: Normal distribution with mean = 0 and std = 0.01
+        Initializes weights for Conv2d and Linear layers.
+        - Uses Kaiming initialization for Conv2d.
+        - Uses normal initialization for Linear layers.
         """
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                n = m.kernel_size[0] * m.kernel_size[1] * m.in_channels
-                m.weight.data.normal_(0, math.sqrt(2.0 / n))
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
                 if m.bias is not None:
-                    m.bias.data.zero_()
+                    nn.init.constant_(m.bias, 0.0)
+
             elif isinstance(m, nn.Linear):
-                m.weight.data.normal_(0, 0.01)
+                nn.init.normal_(m.weight, mean=0.0, std=0.01)
                 if m.bias is not None:
-                    m.bias.data.zero_()
+                    nn.init.constant_(m.bias, 0.0)

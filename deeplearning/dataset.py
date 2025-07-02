@@ -10,7 +10,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms.functional import to_tensor
 
-sns.set_theme(style="white")
+sns.set_theme(style="whitegrid")
 sns.set_context("notebook")
 plt.rcParams["axes.spines.top"] = True
 plt.rcParams["axes.spines.right"] = True
@@ -64,7 +64,7 @@ class ImageDataLoadBuilder:
         train_transform: Callable[[Image.Image], Tensor] = to_tensor,
         valid_transform: Callable[[Image.Image], Tensor] = to_tensor,
         test_transform: Callable[[Image.Image], Tensor] = to_tensor,
-        batchsize: int = 32,
+        batchsize: int = 128,
     ):
         self._train_perc = train_perc
         self._valid_perc = valid_perc
