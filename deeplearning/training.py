@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 sns.set_theme(style="whitegrid")
-sns.set_context("notebook")
+sns.set_context("poster")
 plt.rcParams["axes.spines.top"] = True
 plt.rcParams["axes.spines.right"] = True
 plt.rcParams["axes.spines.left"] = True
