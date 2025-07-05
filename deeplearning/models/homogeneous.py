@@ -60,7 +60,7 @@ class HomogeneousCNNClassifier(nn.Module):
             return nn.Sequential(
                 nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
                 nn.ReLU(),
-                FireBlock(in_channels, out_channels),
+                FireBlock(out_channels, out_channels),
                 nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
             )
         elif self.block_type == "cbam":
