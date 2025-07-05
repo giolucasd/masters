@@ -18,38 +18,40 @@ class CustomClassifier(nn.Module):
 
         self.branch3 = nn.Sequential(
             nn.Conv2d(
-                in_channels, 8, kernel_size=3, stride=1, padding="same", bias=False
+                in_channels, 5, kernel_size=3, stride=1, padding="same", bias=False,
             ),
-            nn.BatchNorm2d(8),
+            nn.BatchNorm2d(5),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
         ).to(self.device)
 
         self.branch5 = nn.Sequential(
             nn.Conv2d(
-                in_channels, 4, kernel_size=5, stride=1, padding="same", bias=False
+                in_channels, 5, kernel_size=5, stride=1, padding="same", bias=False,
             ),
-            nn.BatchNorm2d(4),
+            nn.BatchNorm2d(5),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
         ).to(self.device)
 
         self.branch7 = nn.Sequential(
             nn.Conv2d(
-                in_channels, 4, kernel_size=7, stride=1, padding="same", bias=False
+                in_channels, 5, kernel_size=7, stride=1, padding="same", bias=False,
             ),
-            nn.BatchNorm2d(4),
+            nn.BatchNorm2d(5),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
         ).to(self.device)
 
         self.skip_proj = nn.Sequential(
-            nn.Conv2d(16, 128, kernel_size=1, stride=1, padding=0, bias=False),
-            nn.BatchNorm2d(128),
+            nn.Conv2d(15, 64, kernel_size=1, stride=1, padding=0, bias=False),
+            nn.BatchNorm2d(64),
         ).to(self.device)
 
         self.block2 = nn.Sequential(
-            nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.Conv2d(15, 32, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.ReLU(),
+            nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
@@ -57,27 +59,24 @@ class CustomClassifier(nn.Module):
 
         self.block3 = nn.Sequential(
             nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
         ).to(self.device)
 
         self.block4 = nn.Sequential(
-            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1, bias=False),
-            nn.BatchNorm2d(128),
+            nn.Conv2d(64, 96, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(96),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
-        ).to(self.device)
-
-        self.block5 = nn.Sequential(
-            nn.Conv2d(128, 192, kernel_size=3, stride=1, padding=1, bias=False),
-            nn.BatchNorm2d(192),
+            nn.Conv2d(96, 64, kernel_size=3, stride=1, padding=1, bias=False),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
         ).to(self.device)
 
         self.classifier = nn.Sequential(
-            nn.Linear(7 * 7 * 192, 128),
+            nn.Linear(14 * 14 * 64, 128),
             nn.ReLU(),
             nn.Dropout(0.2),
             nn.Linear(128, num_classes),
@@ -96,14 +95,13 @@ class CustomClassifier(nn.Module):
 
         x = self.block2(x)
         x = self.block3(x)
-        x = self.block4(x)
 
-        for _ in range(3):
+        for _ in range(2):
             skip = nn.functional.avg_pool2d(skip, kernel_size=3, stride=2, padding=1)
         skip = self.skip_proj(skip)
 
         x = x + skip
-        x = self.block5(x)
+        x = self.block4(x)
 
         x = x.flatten(start_dim=1)
 
