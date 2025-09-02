@@ -12,3 +12,6 @@ wheels/
 # Datasets
 deeplearning/images/
 deeplearning/weights/
+
+# Manim outputs
+media/
